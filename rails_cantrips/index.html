@@ -1,0 +1,356 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Rails Cantrips</title>
+
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/netsign.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/tomorrow.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+
+
+				<section>
+					<h1>Rails Cantrips</h1>
+				</section>
+
+				<section>
+					<section>
+						<div class="Logo">
+							<img src="images/point-right.svg" class="Logo-pointRight">
+							<br>
+							<img src="images/netsign.svg" class="Logo-text">
+						</div>
+					</section>
+
+					<section>
+						<h2>We make modern web applications for desktop, mobile, and augmented reality.</h2>
+					</section>
+				</section>
+
+				<section data-background-image="images/finger_flame.jpg">
+					<aside class="notes">
+						Cantrip is a simple trick. Some may know it from D&amp;D.<br>
+						Rails is convention over configuration, this keeps with that philosophy,
+						little productivity tricks that you can use on every project.
+					</aside>
+				</section>
+
+				<section>
+					<ol>
+						<li class="fragment">Environment</li>
+						<li class="fragment">Configuration</li>
+						<li class="fragment">Organization</li>
+						<li class="fragment">Gems</li>
+						<li class="fragment">Boilerplate</li>
+					</ol>
+				</section>
+
+				<!-- Environment -->
+				<section>
+
+					<section>
+						<h1>Environment</h1>
+					</section>
+
+					<section>
+						<p>Have <a href="https://github.com/charliesome/better_errors#specify-editor-to-open-files-in">better_errors</a> open files in a different editor, <a href="http://localhost:3000" target="_blank">Eg.</a></p>
+						<pre><code data-trim data-noescape>
+							# Gemfile
+							gem 'better_errors', group: :development
+
+							# config/environments/development.rb
+							BetterErrors.editor = :sublime
+						</code></pre>
+
+						<p>and use <a href="https://github.com/corysimmons/subl-handler" target="_blank">subl_handler</a> to make it nice.</p>
+					</section>
+
+					<section>
+						<p>Disable generation of gem docs for fast gem installs:</p>
+						<pre><code data-trim data-noescape>
+							# ~/.gemrc or /etc/gemrc
+							gem: --no-rdoc --no-ri
+						</code></pre>
+					</section>
+
+					<section>
+						<p>Multiplex ssh for faster connections</p>
+						<pre><code data-trim data-noescape>
+							# ~/.ssh/config
+							Host *
+							  ControlMaster auto
+							  ControlPath ~/.ssh/master-%C
+						</code></pre>
+					</section>
+
+					<section>
+						<p>A <code>.railsrc</code> file for default database</p>
+						<pre><code data-trim data-noescape>
+							# ~/.railsrc
+							-d postgresql
+						</code></pre>
+					</section>
+
+					<section>
+						<p><a href="http://pgcli.com/" target="_blank">pgcli</a> for autocomplete and syntax highlighting</p>
+						<pre><code data-trim data-noescape>
+							# ln -s /usr/local/bin/pgcli ./bin/psql
+							rails db
+						</code></pre>
+					</section>
+
+				</section>
+
+				<!-- Configuration -->
+				<section>
+
+					<section>
+						<h1>Configuration</h1>
+					</section>
+
+					<section>
+						<p>Put your reusable code in <code>extras</code>, and make it eager loaded on production:</p>
+						<pre><code data-trim data-noescape class="ruby">
+					    # config/application.rb
+    					config.paths.add 'extras', eager_load: true
+						</code></pre>
+						Don't put it somewhere under <code>lib</code>. For more info see this <a href="http://blog.arkency.com/2014/11/dont-forget-about-eager-load-when-extending-autoload/">Arkency post</a>.
+					</section>
+
+					<section>
+						<p>Organize your locale files:</p>
+						<pre><code data-trim data-noescape class="ruby">
+							# From this default:
+							config.i18n.load_path += Dir[Rails.root.join('config', 'locales', '*.{rb,yml}').to_s]
+							# to using a recursive directory glob:
+							config.i18n.load_path += Dir[Rails.root.join('config', 'locales', '**', '*.{rb,yml}').to_s]
+						</code></pre>
+						<p>So you can have folders for mailers, models, views, etc.</p>
+					</section>
+
+					<section>
+						<p>Ensure the session cookie is only served over https,<br>
+							with <code>secure</code> flag.
+						</p>
+						<pre><code data-trim data-noescape>
+							Rails.application.config.session_store :cookie_store,
+								key: '_app_session', secure: !Rails.env.development?
+						</code></pre>
+					</section>
+
+					<section>
+						<p>Move database.yml to database.yml.sample, remove the production stanza.
+						Add <code>database.yml</code> to <code>.gitignore</code>, then update <code>bin/setup</code>:
+
+						</p>
+						<pre><code data-trim data-noescape>
+							# uncomment these lines in bin/setup
+							puts "\n== Copying sample files =="
+							unless File.exist?('config/database.yml')
+							  cp 'config/database.yml.sample', 'config/database.yml'
+							end
+						</code></pre>
+					</section>
+
+					<section>
+						<p>Getting errors in sidekiq from other projects? Configure redis to use a different database for each project via a <code>REDIS_URL</code> env variable</p>
+						<pre><code data-trim data-noescape class="bash">
+							# .env
+							REDIS_URL=redis://127.0.0.1:6379/2
+						</code></pre>
+						<p>Managed easily using <a href="https://github.com/bkeepers/dotenv" target="_blank">dotenv</a>. </p>
+						<aside class="notes">
+							You can have 0 thru 15.
+						</aside>
+					</section>
+
+					<section>
+						<p>A blurb</p>
+						<pre><code data-trim data-noescape>
+							TODO
+						</code></pre>
+					</section>
+
+				</section>
+
+				<!-- Organization -->
+				<section>
+
+					<section>
+						<h1>Organization</h1>
+					</section>
+
+					<section>
+						<p>A blurb</p>
+						<pre><code data-trim data-noescape>
+							TODO
+						</code></pre>
+					</section>
+
+
+				</section>
+
+				<!-- Gems -->
+				<section>
+
+					<section>
+						<h1>Gems</h1>
+					</section>
+
+          <section>
+            <p>Handy way to obfuscate mailto links from spambots:</p>
+            <pre><code data-trim data-noescape>
+              # Gemfile
+              gem 'actionview-encoded_mail_to'
+
+              # in a template
+              <%= mail_to "weston@netsign.com", "Email me", encode: "javascript" %>
+            </code></pre>
+          </section>
+
+					<section>
+						<p>Use bundler's open command:</p>
+						<pre><code data-trim data-noescape>
+							bundle open devise
+						</code></pre>
+            <p>Can customize which editor with <code>BUNDLER_EDITOR</code></p>
+					</section>
+
+				</section>
+
+				<!-- Boilerplate -->
+				<section>
+
+					<section>
+						<h1>Boilerplate</h1>
+					</section>
+
+					<section>
+						<p>Migrations getting unwieldly? Have legacy data transforms? Collapse your migrations.</p>
+						<pre><code data-trim data-noescape class="ruby">
+class CollapseMigrations &lt; ActiveRecord::Migration
+  def up
+		# schema.rb's ActiveRecord::Schema.define() block
+	end
+
+	def down
+    raise ActiveRecord::IrreversibleMigration
+	end
+end
+						</code></pre>
+						<p>Delete all your other migrations, <code>rake db:migrate:reset</code></p>
+					</section>
+
+          <section>
+            <p>WrappingForm for contextual validations ...</p>
+            <pre><code data-trim data-noescape class="ruby">
+class WrappingForm
+  include ActiveModel::Model
+
+  def initialize(model)
+    @model = model
+  end
+
+  attr_reader :model
+end
+
+class UpdateProfileForm < WrappingForm
+  delegate :first_name, :last_name, to: :model
+  validates :first_name, :last_name, presence: true
+end
+
+class ProfilesController < ApplicationController
+
+  def edit
+    @update_profile_form = UpdateProfileForm.new(current_user)
+  end
+
+  def update
+    current_user.attributes = update_params
+    @update_profile_form = UpdateProfileForm.new(current_user)
+    if @update_profile_form.valid? && current_user.save!
+      redirect_to user_root_path, success: 'Profile updated!'
+    else
+      render :edit
+    end
+  end
+
+end
+            </code></pre>
+          </section>
+
+
+          <section>
+            <p>Use capistrano for remote tasks:</p>
+            <pre><code data-trim data-noescape class="ruby">
+namespace :remote do
+
+  desc 'Run a remote rake task, example: "cap staging remote:rake[db:version]"'
+  task :rake, [:task] do |t, args|
+    on primary fetch(:migration_role) do
+      within release_path do
+        with rails_env: fetch(:rails_env) do
+          execute :rake, args.task
+        end
+      end
+    end
+  end
+
+  desc 'Run a remote command, example: "cap production remote:cmd[ps,aux]"'
+  task :cmd, [:cmd, :options] do |t,args|
+    on primary fetch(:migration_role) do
+      within release_path do
+        execute args.cmd.to_sym, args.options
+      end
+    end
+  end
+
+end
+            </code></pre>
+          </section>
+
+				</section>
+
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				history: true,
+
+				// More info https://github.com/hakimel/reveal.js#dependencies
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() {
+							hljs.configure({ languages: ['bash', 'ruby']});
+							hljs.initHighlightingOnLoad();
+						}
+					}
+				]
+			});
+		</script>
+	</body>
+</html>
